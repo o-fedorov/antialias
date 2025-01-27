@@ -1,0 +1,11 @@
+{
+  "source_files": [
+    "scripts/ops.sh",
+    "scripts/test_source1.sh",
+    "scripts/test_source2.sh"
+  ],
+  "underscore_to_dash": true,
+  "keep_original_name": false,
+  "function_regexp": "^\\s*(?:function\\s+)?(?P<function_name>\\w+)\\s*(?:\\(\\))?\\s*\\{\\s*(?:#\\s*(?P<comment>.*))?$",
+  "alias": "a"
+}

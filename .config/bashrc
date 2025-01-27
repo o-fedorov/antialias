@@ -1,0 +1,6 @@
+export ANTIALIAS_FILES_ROOT=$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")/..
+export ANTIALIAS_CONFIG=$ANTIALIAS_FILES_ROOT/.config/config.json
+
+a() {
+  eval "$($ANTIALIAS_FILES_ROOT/antialias.py eval -- "$@")"
+}
