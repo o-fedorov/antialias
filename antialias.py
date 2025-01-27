@@ -56,8 +56,10 @@ class Config:
     source_files: list[Path] = field(default_factory=list)
     underscore_to_dash: bool = False
     keep_original_name: bool = False
-    function_regexp: str = r"^\s*(?:function\s+)?(?P<function_name>\w+)\s*(?:\(\))?\s*\{\s*(?:#\s*(?P<comment>.*))?$"  # noqa: E501
-    alias: str = "antialias.py eval"
+    function_regexp: str = (
+        r"^\s*(?:function\s+)?(?P<function_name>\w+)\s*(?:\(\))?"
+        + r"\s*\{\s*(?:#\s*(?P<comment>.*))?$"
+    )
 
     @classmethod
     def from_dict(cls, data: dict, *, files_root: Path = Path()) -> "Config":

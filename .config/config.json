@@ -6,6 +6,5 @@
   ],
   "underscore_to_dash": true,
   "keep_original_name": false,
-  "function_regexp": "^\\s*(?:function\\s+)?(?P<function_name>\\w+)\\s*(?:\\(\\))?\\s*\\{\\s*(?:#\\s*(?P<comment>.*))?$",
-  "alias": "a"
+  "function_regexp": "^\\s*(?:function\\s+)?(?P<function_name>\\w+)\\s*(?:\\(\\))?\\s*\\{\\s*(?:#\\s*(?P<comment>.*))?$"
 }
