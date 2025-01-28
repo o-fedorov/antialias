@@ -48,6 +48,9 @@ SPECIAL_FUNCTIONS = MappingProxyType(
     },
 )
 
+CWD = Path.cwd().resolve()
+HOME_DIR = Path.home()
+
 
 @dataclass
 class Config:
@@ -97,14 +100,14 @@ class FunctionRecord:
 @click.option(
     "-c",
     "--config",
-    default="~/.antialias.json",
+    default=f"{HOME_DIR}/.antialias.json",
     type=click.Path(dir_okay=False, path_type=Path, resolve_path=True),
     help="Path to config file",
 )
 @click.option(
     "-r",
     "--files-root",
-    default=".",
+    default=str(CWD),
     type=click.Path(exists=True, resolve_path=True, path_type=Path),
     help="Root directory for source_files, if a relative paths are used.",
 )
