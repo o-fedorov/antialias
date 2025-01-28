@@ -93,29 +93,6 @@ class FunctionRecord:
     is_special: bool = False
 
 
-def require_source_files(function):
-    """A decorator to require source files to be set."""
-
-    def wrapper(ctx, *args, **kwargs):
-        config_path = ctx.obj["config_path"]
-        if not config_path.exists():
-            click.echo(f"Error: config file {config_path} does not exist.", err=True)
-            sys.exit(1)
-
-        config = ctx.obj["config"]
-        if not config.source_files:
-            click.echo(
-                "Error: source_files is not set in the config.  "
-                + f"Please update {config_path} and add at least one "
-                + "source_files path.",
-                err=True,
-            )
-            sys.exit(1)
-        return function(ctx, *args, **kwargs)
-
-    return wrapper
-
-
 @click.group()
 @click.option(
     "-c",
@@ -189,7 +166,6 @@ def _collect_functions(config: Config) -> dict[str, FunctionRecord]:
 @click.argument("function")
 @click.argument("args", nargs=-1)
 @click.pass_context
-@require_source_files
 def eval_(ctx, function, args):
     """Generate scripts for the shell to evaluate."""
     config = ctx.obj["config"]
@@ -224,7 +200,6 @@ def eval_(ctx, function, args):
 
 @cli.command(name="list")
 @click.pass_context
-@require_source_files
 def list_(ctx):
     """Show available commands."""
     config = ctx.obj["config"]
