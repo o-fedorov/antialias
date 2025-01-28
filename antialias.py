@@ -211,12 +211,13 @@ def list_(ctx):
     records = sorted(registry.values(), key=lambda r: (r.is_special, r.file, r.name))
     for key, group in itertools.groupby(records, key=lambda r: (r.is_special, r.file)):
         is_special, path = key
+        short_path = _shrink_path(path)
 
         group_list = list(group)
         if not group_list:
             continue
 
-        click.echo("Special Functions:" if is_special else f"File: {path}\n")
+        click.echo("Special Functions:" if is_special else f"File: {short_path}\n")
 
         seen = set()
         for record in group_list:
@@ -248,6 +249,13 @@ def list_(ctx):
             click.echo(f"  {record.name}{extras_str}{help_string}")
 
         click.echo("")
+
+
+def _shrink_path(path: Path) -> Path:
+    """Shrink the path to make it more readable."""
+    if path.is_relative_to(HOME_DIR):
+        return "~" / path.relative_to(HOME_DIR)
+    return path
 
 
 @cli.command
