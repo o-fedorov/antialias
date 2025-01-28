@@ -205,7 +205,7 @@ def list_(ctx):
     config = ctx.obj["config"]
     registry = ctx.obj["registry"]
 
-    records = sorted(registry.values(), key=lambda r: r.name)
+    records = sorted(registry.values(), key=lambda r: (r.is_special, r.file, r.name))
     for key, group in itertools.groupby(records, key=lambda r: (r.is_special, r.file)):
         is_special, path = key
 
