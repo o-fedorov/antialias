@@ -91,7 +91,7 @@ class FunctionRecord:
     name: str
     original_name: str
     help: str
-    file: Path
+    path: Path
     aliases: set[str] = field(default_factory=set)
     is_special: bool = False
 
@@ -112,7 +112,7 @@ class FunctionRecord:
     help="Root directory for source_files, if a relative paths are used.",
 )
 @click.pass_context
-def cli(ctx, config, files_root):
+def cli(ctx: click.Context, config: str, files_root: Path):
     """The main entrypoint for the command."""
     ctx.ensure_object(dict)
 
@@ -146,7 +146,7 @@ def _collect_functions(config: Config) -> dict[str, FunctionRecord]:
                 name=name,
                 original_name=original_name,
                 help=comment,
-                file=path,
+                path=path,
                 aliases={name},
             )
             registry[name] = func_record
@@ -159,7 +159,7 @@ def _collect_functions(config: Config) -> dict[str, FunctionRecord]:
             name=special_name,
             original_name=name,
             help=comment,
-            file=Path(),
+            path=Path(),
             is_special=True,
         )
     return registry
@@ -169,7 +169,7 @@ def _collect_functions(config: Config) -> dict[str, FunctionRecord]:
 @click.argument("function")
 @click.argument("args", nargs=-1)
 @click.pass_context
-def eval_(ctx, function, args):
+def eval_(ctx: click.Context, function: str, args: tuple[str]):
     """Generate scripts for the shell to evaluate."""
     config = ctx.obj["config"]
     registry = ctx.obj["registry"]
@@ -203,13 +203,13 @@ def eval_(ctx, function, args):
 
 @cli.command(name="list")
 @click.pass_context
-def list_(ctx):
+def list_(ctx: click.Context):
     """Show available commands."""
     config = ctx.obj["config"]
     registry = ctx.obj["registry"]
 
-    records = sorted(registry.values(), key=lambda r: (r.is_special, r.file, r.name))
-    for key, group in itertools.groupby(records, key=lambda r: (r.is_special, r.file)):
+    records = sorted(registry.values(), key=lambda r: (r.is_special, r.path, r.name))
+    for key, group in itertools.groupby(records, key=lambda r: (r.is_special, r.path)):
         is_special, path = key
         short_path = _shrink_path(path)
 
@@ -260,7 +260,7 @@ def _shrink_path(path: Path) -> Path:
 
 @cli.command
 @click.pass_context
-def dump_config(ctx):
+def dump_config(ctx: click.Context):
     """Dump config to a file."""
     config_path = ctx.obj["config_path"]
     config = ctx.obj["config"]
