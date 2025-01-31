@@ -261,11 +261,20 @@ def eval_(ctx: click.Context, function: str, args: tuple[str]):
     command = record.format_command(function, args)
 
     click.echo(f"""
+    PID=$$
+    mkdir -p /tmp/antialias
     (
         {source_commands}
 
+        env > /tmp/antialias/env-before-$PID
         {command}
+        env > /tmp/antialias/env-after-$PID
     )
+    new_env=$(comm -13 /tmp/antialias/env-before-$PID /tmp/antialias/env-after-$PID)
+
+    while IFS= read -r line; do
+        export "$line"
+    done <<< "$new_env"
     """)
 
 
