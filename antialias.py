@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 # /// script
-# requires-python = ">=3.9"
+# requires-python = ">=3.10"
 # dependencies = [
 #   "click~=8.1",
 # ]

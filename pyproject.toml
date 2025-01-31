@@ -3,7 +3,7 @@ name = "antialias"
 version = "0.1.0"
 description = "Invoke your bash functions from one place."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "click~=8.1",
 ]
