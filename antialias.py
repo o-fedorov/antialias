@@ -35,6 +35,7 @@ import json
 import re
 import shlex
 import sys
+from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from types import MappingProxyType
@@ -43,13 +44,14 @@ import click
 
 SPECIAL_FUNCTIONS = MappingProxyType(
     {
-        "--list": ("list", "List all available functions."),
         "--dump-config": ("dump-config", "Dump config to a file."),
+        "--list": ("list", "List all available functions."),
     },
 )
 
 CWD = Path.cwd().resolve()
 HOME_DIR = Path.home()
+EVAL_COMMAND = "eval"
 
 
 @dataclass
@@ -85,15 +87,125 @@ class Config:
 
 
 @dataclass
-class FunctionRecord:
-    """Function's metadata."""
+class AbstractFunctionRecord:
+    """Base function's metadata implementation."""
 
     name: str
     original_name: str
     help: str
-    path: Path
     aliases: set[str] = field(default_factory=set)
-    is_special: bool = False
+
+    def format_command(self, name: str, args: tuple[str]) -> str:
+        """Format the command to be executed."""
+        args_str = shlex.join(args)
+        return f"{name} {args_str}"
+
+
+@dataclass
+class SpecialFunctionRecord(AbstractFunctionRecord):
+    """Metadata for a special function."""
+
+    def format_command(self, name: str, args: tuple[str]) -> str:  # noqa: ARG002 Unused method argument: `name`
+        """Format the command to execute the actual subcommand."""
+        func_name = self.original_name
+        original_args = tuple(
+            itertools.takewhile(lambda a: a != EVAL_COMMAND, sys.argv)
+        )
+        actual_name, *actual_args = (*original_args, func_name, *args)
+        return super().format_command(actual_name, actual_args)
+
+
+@dataclass
+class SourceFunctionRecord(AbstractFunctionRecord):
+    """Metadata for a function defined in a source file."""
+
+    path: Path = field(kw_only=True)
+
+    def format_command(self, name, args):  # noqa: ARG002 Unused argument
+        """Format the command to execute by original name."""
+        return super().format_command(self.original_name, args)
+
+
+@dataclass
+class Registry:
+    """Registry of functions."""
+
+    config: Config
+    special_functions: dict[str, SpecialFunctionRecord] = field(default_factory=dict)
+    source_functions: dict[str, SourceFunctionRecord] = field(default_factory=dict)
+
+    def __post_init__(self):
+        """Initialize the registry."""
+        for path in self.config.source_files:
+            functions = self._get_source_functions(path)
+            self.source_functions.update(functions)
+
+        for special_name, (name, comment) in SPECIAL_FUNCTIONS.items():
+            self.special_functions[special_name] = SpecialFunctionRecord(
+                name=special_name,
+                original_name=name,
+                help=comment,
+            )
+
+    def _get_source_functions(self, path: Path) -> dict[str, SourceFunctionRecord]:
+        functions = {}
+
+        text = path.read_text()
+        for match in re.finditer(
+            self.config.function_regexp, text, flags=re.MULTILINE | re.IGNORECASE
+        ):
+            original_name = match.group("function_name")
+            comment = match.group("comment")
+
+            if self.config.underscore_to_dash:
+                name = original_name.replace("_", "-")
+            else:
+                name = original_name
+
+            func_record = SourceFunctionRecord(
+                name=name,
+                original_name=original_name,
+                help=comment,
+                path=path,
+                aliases={name},
+            )
+            functions[name] = func_record
+            if self.config.keep_original_name:
+                functions[original_name] = func_record
+                func_record.aliases.add(original_name)
+        return functions
+
+    def get(self, name: str) -> AbstractFunctionRecord:
+        """Get a function record by name."""
+        for registry in (self.special_functions, self.source_functions):
+            if name in registry:
+                return registry[name]
+        raise KeyError(name)
+
+    def iter_source_functions(
+        self,
+    ) -> Iterator[tuple[Path, list[SourceFunctionRecord]]]:
+        """Iterate over source functions."""
+        records = sorted(self.source_functions.values(), key=lambda r: (r.path, r.name))
+        for path, group in itertools.groupby(records, key=lambda r: r.path):
+            group_list = list(_generate_unique_records(group))
+            if group_list:
+                yield path, group_list
+
+    def __contains__(self, name: str) -> bool:
+        """Check if the function record is in the registry."""
+        return name in self.source_functions or name in self.special_functions
+
+
+def _generate_unique_records(
+    records: Iterable[AbstractFunctionRecord],
+) -> Iterator[AbstractFunctionRecord]:
+    """Get unique function records."""
+    seen = set()
+    for record in records:
+        if record.name not in seen:
+            yield record
+        seen.add(record.name)
 
 
 @click.group()
@@ -124,48 +236,10 @@ def cli(ctx: click.Context, config: str, files_root: Path):
 
     ctx.obj["config_path"] = config
     ctx.obj["config"] = config_obj
-    ctx.obj["registry"] = _collect_functions(config_obj)
+    ctx.obj["registry"] = Registry(config_obj)
 
 
-def _collect_functions(config: Config) -> dict[str, FunctionRecord]:
-    registry = {}
-    for path in config.source_files:
-        text = path.read_text()
-        for match in re.finditer(
-            config.function_regexp, text, flags=re.MULTILINE | re.IGNORECASE
-        ):
-            original_name = match.group("function_name")
-            comment = match.group("comment")
-
-            if config.underscore_to_dash:
-                name = original_name.replace("_", "-")
-            else:
-                name = original_name
-
-            func_record = FunctionRecord(
-                name=name,
-                original_name=original_name,
-                help=comment,
-                path=path,
-                aliases={name},
-            )
-            registry[name] = func_record
-            if config.keep_original_name:
-                registry[original_name] = func_record
-                func_record.aliases.add(original_name)
-
-    for special_name, (name, comment) in SPECIAL_FUNCTIONS.items():
-        registry[special_name] = FunctionRecord(
-            name=special_name,
-            original_name=name,
-            help=comment,
-            path=Path(),
-            is_special=True,
-        )
-    return registry
-
-
-@cli.command(name="eval")
+@cli.command(name=EVAL_COMMAND)
 @click.argument("function")
 @click.argument("args", nargs=-1)
 @click.pass_context
@@ -173,30 +247,24 @@ def eval_(ctx: click.Context, function: str, args: tuple[str]):
     """Generate scripts for the shell to evaluate."""
     config = ctx.obj["config"]
     registry = ctx.obj["registry"]
+
     if function not in registry:
         click.echo(f"Error: function {function} not found.", err=True)
         sys.exit(1)
 
-    prepared_files = [shlex.quote(str(file)) for file in config.source_files]
+    prepared_files = [
+        shlex.quote(str(file)) for file in config.source_files if file.is_file()
+    ]
     source_commands = "\n".join([f"source {file}" for file in prepared_files])
 
-    record: FunctionRecord = registry[function]
-
-    if record.is_special:
-        func_name, *original_args = itertools.takewhile(
-            lambda a: a != ctx.info_name, sys.argv
-        )
-        args = (*original_args, record.original_name, *args)
-    else:
-        func_name = record.original_name
-
-    args_str = shlex.join(args)
+    record: AbstractFunctionRecord = registry.get(function)
+    command = record.format_command(function, args)
 
     click.echo(f"""
     (
         {source_commands}
 
-        {func_name} {args_str}
+        {command}
     )
     """)
 
@@ -205,34 +273,19 @@ def eval_(ctx: click.Context, function: str, args: tuple[str]):
 @click.pass_context
 def list_(ctx: click.Context):
     """Show available commands."""
-    config = ctx.obj["config"]
-    registry = ctx.obj["registry"]
+    config: Config = ctx.obj["config"]
+    registry: Registry = ctx.obj["registry"]
 
-    records = sorted(registry.values(), key=lambda r: (r.is_special, r.path, r.name))
-    for key, group in itertools.groupby(records, key=lambda r: (r.is_special, r.path)):
-        is_special, path = key
+    for path, group in registry.iter_source_functions():
         short_path = _shrink_path(path)
 
-        group_list = list(group)
-        if not group_list:
-            continue
+        click.echo(f"File: {short_path}\n")
 
-        click.echo("Special Functions:" if is_special else f"File: {short_path}\n")
-
-        seen = set()
-        for record in group_list:
-            if record.name in seen:
-                continue
-            seen.add(record.name)
-
+        for record in group:
             help_string = f": {record.help}" if record.help else ""
 
             extras = []
-            if (
-                not record.is_special
-                and record.original_name != record.name
-                and not config.keep_original_name
-            ):
+            if record.original_name != record.name and not config.keep_original_name:
                 extras.append(f"original: {record.original_name}")
 
             if len(record.aliases) > 1:
@@ -249,6 +302,10 @@ def list_(ctx: click.Context):
             click.echo(f"  {record.name}{extras_str}{help_string}")
 
         click.echo("")
+
+    click.echo("Special functions:")
+    for special_name, record in registry.special_functions.items():
+        click.echo(f"  {special_name}: {record.help}")
 
 
 def _shrink_path(path: Path) -> Path:
