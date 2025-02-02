@@ -22,7 +22,21 @@ als() {
 }
 ```
 
-Feel free to replace `als` with any other name you prefer.
+Also, add one of the following lines to
+setup commands completion. For zsh:
+
+```bash
+eval "$($ANTIALIAS_FILES_ROOT/antialias.py completion --zsh --name als)"
+```
+
+For bash:
+
+```bash
+eval "$($ANTIALIAS_FILES_ROOT/antialias.py completion --bash --name als)"
+```
+
+Feel free to replace `als` in the examples above
+with any other name you prefer.
 
 Restart your shell or run `source ~/.bashrc`, `source ~/.bash_profile`
 or `source ~/.zshrc` to apply the changes.  Now you can generate
