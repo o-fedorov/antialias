@@ -32,11 +32,12 @@ SOFTWARE.
 # ///
 import itertools
 import json
+import os
 import re
 import shlex
 import sys
 from collections.abc import Iterable, Iterator
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from types import MappingProxyType
 
@@ -52,6 +53,42 @@ SPECIAL_FUNCTIONS = MappingProxyType(
 CWD = Path.cwd().resolve()
 HOME_DIR = Path.home()
 EVAL_COMMAND = "eval"
+BASH_COMPLETION_TEMPLATE = """
+_{wrapper_name}_completion() {{
+    local cur prev opts
+    COMPREPLY=()
+    cur="${{COMP_WORDS[COMP_CWORD]}}"
+    prev="${{COMP_WORDS[COMP_CWORD-1]}}"
+    opts="{names}"
+
+    if [[ ${{COMP_CWORD}} -eq 1 ]]; then
+        COMPREPLY=( $(compgen -W "${{opts}}" -- "${{cur}}") )
+    fi
+}}
+
+complete -F _{wrapper_name}_completion {wrapper_name}
+"""
+
+ZSH_COMPLETION_TEMPLATE = """
+#compdef {wrapper_name}
+
+_{wrapper_name}_completion() {{
+    local -a subcommands
+    subcommands=(
+        {subcommands}
+    )
+
+    _arguments '1:subcommand:->subcmds' && return 0
+
+    case $state in
+        subcmds)
+            _describe 'subcommands' subcommands
+            ;;
+    esac
+}}
+
+compdef _a_completion a
+"""
 
 
 @dataclass
@@ -94,6 +131,10 @@ class AbstractFunctionRecord:
     original_name: str
     help: str
     aliases: set[str] = field(default_factory=set)
+
+    def __post_init__(self):
+        if self.help is None:
+            self.help = ""
 
     def format_command(self, name: str, args: tuple[str]) -> str:
         """Format the command to be executed."""
@@ -171,8 +212,8 @@ class Registry:
             )
             functions[name] = func_record
             if self.config.keep_original_name:
-                functions[original_name] = func_record
                 func_record.aliases.add(original_name)
+                functions[original_name] = replace(func_record, name=original_name)
         return functions
 
     def get(self, name: str) -> AbstractFunctionRecord:
@@ -192,6 +233,11 @@ class Registry:
             if group_list:
                 yield path, group_list
 
+    def iter_all(self):
+        """Iterate over all functions."""
+        yield from self.source_functions.values()
+        yield from self.special_functions.values()
+
     def __contains__(self, name: str) -> bool:
         """Check if the function record is in the registry."""
         return name in self.source_functions or name in self.special_functions
@@ -203,9 +249,9 @@ def _generate_unique_records(
     """Get unique function records."""
     seen = set()
     for record in records:
-        if record.name not in seen:
+        if record.original_name not in seen:
             yield record
-        seen.add(record.name)
+        seen.add(record.original_name)
 
 
 @click.group()
@@ -350,6 +396,38 @@ def _path_to_json(obj):
     obj_type = type(obj).__name__
     message = f"Object of type {obj_type} is not JSON serializable."
     raise TypeError(message)
+
+
+@cli.command
+@click.option("--zsh", "shell", flag_value="zsh")
+@click.option("--bash", "shell", flag_value="bash")
+@click.option(
+    "-n", "--name", help="Name of the wrapper that calls the eval comand", default="als"
+)
+@click.pass_context
+def completion(ctx: click.Context, shell: str | None, name: str):
+    """Generate autocompletion code."""
+    if not shell:
+        shell = Path(os.getenv("SHELL", "")).name
+
+    registry = ctx.obj["registry"]
+
+    if shell == "bash":
+        names = [record.name for record in registry.iter_all()]
+        click.echo(
+            BASH_COMPLETION_TEMPLATE.format(names=shlex.join(names), wrapper_name=name)
+        )
+    elif shell == "zsh":
+        subcommands = [f"{r.name}:{r.help}" for r in registry.iter_all()]
+        click.echo(
+            ZSH_COMPLETION_TEMPLATE.format(
+                subcommands=shlex.join(subcommands), wrapper_name=name
+            )
+        )
+    else:
+        cmd = shlex.join(sys.argv)
+        click.echo(f"Error: {cmd}: Unsupported shell: {shell}", err=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
