@@ -155,7 +155,9 @@ class SpecialFunctionRecord(AbstractFunctionRecord):
             itertools.takewhile(lambda a: a != EVAL_COMMAND, sys.argv)
         )
         actual_name, *actual_args = (*original_args, func_name, *args)
-        return super().format_command(actual_name, actual_args)
+        args_str = shlex.join(actual_args)
+
+        return f"{actual_name} {args_str}"
 
 
 @dataclass
@@ -166,7 +168,7 @@ class SourceFunctionRecord(AbstractFunctionRecord):
 
     def format_command(self, args):
         """Format the command to execute by original name."""
-        return super().format_command(self.original_name, args)
+        return super().format_command(args)
 
 
 @dataclass
@@ -237,13 +239,16 @@ class Registry:
         return functions
 
     def _get_script_functions(self, path: Path) -> dict[str, ScriptFunctionRecord]:
-
         original_name = path.stem
         comment = ""
         config = self.config
         cls = ScriptFunctionRecord
 
-        name = original_name.replace("_", "-") if config.underscore_to_dash else original_name
+        name = (
+            original_name.replace("_", "-")
+            if config.underscore_to_dash
+            else original_name
+        )
 
         func_record = cls(
             name=name,
@@ -362,7 +367,7 @@ def eval_(ctx: click.Context, function: str, args: tuple[str]):
     new_env=$(comm -13 /tmp/antialias/env-before-$PID /tmp/antialias/env-after-$PID)
 
     while IFS= read -r line; do
-        export "$line"
+        [ -n "$line" ] && export "$line"
     done <<< "$new_env"
     """)
 
@@ -461,7 +466,9 @@ def completion(ctx: click.Context, shell: str | None, name: str):
             BASH_COMPLETION_TEMPLATE.format(names=shlex.join(names), wrapper_name=name)
         )
     elif shell == "zsh":
-        subcommands = [f"{r.name}:{r.help}" for r in registry.iter_all()]
+        subcommands = [
+            f"{r.name}:{r.help or r.original_name}" for r in registry.iter_all()
+        ]
         click.echo(
             ZSH_COMPLETION_TEMPLATE.format(
                 subcommands=shlex.join(subcommands), wrapper_name=name
