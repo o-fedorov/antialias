@@ -87,7 +87,7 @@ _{wrapper_name}_completion() {{
     esac
 }}
 
-compdef _a_completion a
+compdef _{wrapper_name}_completion {wrapper_name}
 """
 
 
