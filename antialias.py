@@ -96,6 +96,7 @@ class Config:
     """Configuration for the application."""
 
     source_files: list[Path] = field(default_factory=list)
+    script_directories: list[Path] = field(default_factory=list)
     underscore_to_dash: bool = False
     keep_original_name: bool = False
     function_regexp: str = (
@@ -136,9 +137,10 @@ class AbstractFunctionRecord:
         if self.help is None:
             self.help = ""
 
-    def format_command(self, name: str, args: tuple[str]) -> str:
+    def format_command(self, args: tuple[str]) -> str:
         """Format the command to be executed."""
         args_str = shlex.join(args)
+        name = self.original_name
         return f"{name} {args_str}"
 
 
@@ -146,7 +148,7 @@ class AbstractFunctionRecord:
 class SpecialFunctionRecord(AbstractFunctionRecord):
     """Metadata for a special function."""
 
-    def format_command(self, name: str, args: tuple[str]) -> str:  # noqa: ARG002 Unused method argument: `name`
+    def format_command(self, args: tuple[str]) -> str:
         """Format the command to execute the actual subcommand."""
         func_name = self.original_name
         original_args = tuple(
@@ -162,8 +164,19 @@ class SourceFunctionRecord(AbstractFunctionRecord):
 
     path: Path = field(kw_only=True)
 
-    def format_command(self, name, args):  # noqa: ARG002 Unused argument
+    def format_command(self, args):
         """Format the command to execute by original name."""
+        return super().format_command(self.original_name, args)
+
+
+@dataclass
+class ScriptFunctionRecord(AbstractFunctionRecord):
+    """Metadata for a function defined in a source file."""
+
+    path: Path = field(kw_only=True)
+
+    def format_command(self, args):
+        """Format the command to execute."""
         return super().format_command(self.original_name, args)
 
 
@@ -172,8 +185,9 @@ class Registry:
     """Registry of functions."""
 
     config: Config
-    special_functions: dict[str, SpecialFunctionRecord] = field(default_factory=dict)
     source_functions: dict[str, SourceFunctionRecord] = field(default_factory=dict)
+    script_functions: dict[str, ScriptFunctionRecord] = field(default_factory=dict)
+    special_functions: dict[str, SpecialFunctionRecord] = field(default_factory=dict)
 
     def __post_init__(self):
         """Initialize the registry."""
@@ -187,6 +201,12 @@ class Registry:
                 original_name=name,
                 help=comment,
             )
+
+        for path in self.config.script_directories:
+            for file in path.iterdir():
+                if file.is_file() and os.access(file, os.X_OK):
+                    functions = self._get_source_functions(file)
+                    self.script_functions.update(functions)
 
     def _get_source_functions(self, path: Path) -> dict[str, SourceFunctionRecord]:
         functions = {}
@@ -214,6 +234,29 @@ class Registry:
             if self.config.keep_original_name:
                 func_record.aliases.add(original_name)
                 functions[original_name] = replace(func_record, name=original_name)
+        return functions
+
+    def _get_script_functions(self, path: Path) -> dict[str, ScriptFunctionRecord]:
+
+        original_name = path.stem
+        comment = ""
+        config = self.config
+        cls = ScriptFunctionRecord
+
+        name = original_name.replace("_", "-") if config.underscore_to_dash else original_name
+
+        func_record = cls(
+            name=name,
+            original_name=original_name,
+            help=comment,
+            path=path,
+            aliases={name},
+        )
+        functions = {name: func_record}
+
+        if config.keep_original_name:
+            func_record.aliases.add(original_name)
+            functions[original_name] = replace(func_record, name=original_name)
         return functions
 
     def get(self, name: str) -> AbstractFunctionRecord:
@@ -304,7 +347,7 @@ def eval_(ctx: click.Context, function: str, args: tuple[str]):
     source_commands = "\n".join([f"source {file}" for file in prepared_files])
 
     record: AbstractFunctionRecord = registry.get(function)
-    command = record.format_command(function, args)
+    command = record.format_command(args)
 
     click.echo(f"""
     PID=$$
