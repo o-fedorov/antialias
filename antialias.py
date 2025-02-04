@@ -37,11 +37,14 @@ import re
 import shlex
 import sys
 from collections.abc import Iterable, Iterator
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from types import MappingProxyType
+from typing import TypeVar
 
 import click
+
+T = TypeVar("T")
 
 SPECIAL_FUNCTIONS = MappingProxyType(
     {
@@ -108,20 +111,28 @@ class Config:
     def from_dict(cls, data: dict, *, files_root: Path = Path()) -> "Config":
         """Create a Config object from a dictionary."""
         data = data.copy()
-        source_files = data.pop("source_files")
-        resolved_source_files = []
+        source_files = data.pop("source_files", [])
+        script_directories = data.pop("script_directories", [])
 
-        for path_str in source_files:
+        resolved_source_files = cls._resolve_paths(files_root, source_files)
+        resolved_script_directories = cls._resolve_paths(files_root, script_directories)
+
+        return cls(
+            source_files=resolved_source_files,
+            script_directories=resolved_script_directories,
+            **data,
+        )
+
+    @classmethod
+    def _resolve_paths(cls, files_root, files):
+        resolved_files = []
+        for path_str in files:
             path = Path(path_str).expanduser()
 
             if not path.is_absolute():
                 path = files_root / path
-            resolved_source_files.append(path.resolve())
-
-        return cls(
-            source_files=resolved_source_files,
-            **data,
-        )
+            resolved_files.append(path.resolve())
+        return resolved_files
 
 
 @dataclass
@@ -130,17 +141,18 @@ class AbstractFunctionRecord:
 
     name: str
     original_name: str
-    help: str
+    help: str = None
     aliases: set[str] = field(default_factory=set)
 
     def __post_init__(self):
         if self.help is None:
             self.help = ""
 
-    def format_command(self, args: tuple[str]) -> str:
+    def format_command(self, args: tuple[str], *, name: str | None = None) -> str:
         """Format the command to be executed."""
+        if name is None:
+            name = self.original_name
         args_str = shlex.join(args)
-        name = self.original_name
         return f"{name} {args_str}"
 
 
@@ -148,16 +160,15 @@ class AbstractFunctionRecord:
 class SpecialFunctionRecord(AbstractFunctionRecord):
     """Metadata for a special function."""
 
-    def format_command(self, args: tuple[str]) -> str:
+    def format_command(self, args: tuple[str], **_) -> str:
         """Format the command to execute the actual subcommand."""
         func_name = self.original_name
         original_args = tuple(
             itertools.takewhile(lambda a: a != EVAL_COMMAND, sys.argv)
         )
         actual_name, *actual_args = (*original_args, func_name, *args)
-        args_str = shlex.join(actual_args)
 
-        return f"{actual_name} {args_str}"
+        return super().format_command(actual_args, name=actual_name)
 
 
 @dataclass
@@ -166,20 +177,62 @@ class SourceFunctionRecord(AbstractFunctionRecord):
 
     path: Path = field(kw_only=True)
 
-    def format_command(self, args):
-        """Format the command to execute by original name."""
-        return super().format_command(args)
+    @classmethod
+    def build_all(
+        cls: type[T],
+        original_name: str,
+        path: Path,
+        config: Config,
+        *,
+        comment: str | None = None,
+    ) -> dict[str, T]:
+        """Build the records according to a config."""
+        names = cls._get_names(original_name, config)
+
+        functions = {}
+        for name in names:
+            functions[name] = cls(
+                name=name,
+                original_name=original_name,
+                help=comment,
+                path=path,
+                aliases=names,
+            )
+
+        return functions
+
+    @classmethod
+    def _get_names(cls, original_name: str, config: Config) -> set[str]:
+        names = set()
+        if config.underscore_to_dash:
+            names.add(original_name.replace("_", "-"))
+        else:
+            names.add(original_name)
+
+        if config.keep_original_name:
+            names.add(original_name)
+
+        return names
 
 
 @dataclass
-class ScriptFunctionRecord(AbstractFunctionRecord):
+class ScriptFunctionRecord(SourceFunctionRecord):
     """Metadata for a function defined in a source file."""
 
-    path: Path = field(kw_only=True)
+    def format_command(self, args: tuple[str], **_) -> str:
+        """Format the command for an executable file in a directory."""
+        name = self.path / self.original_name
+        return super().format_command(args, name=name)
 
-    def format_command(self, args):
-        """Format the command to execute."""
-        return super().format_command(self.original_name, args)
+    @classmethod
+    def _get_names(cls, original_name, config):
+        names = super()._get_names(original_name, config)
+        for name in names.copy():
+            # Drop an extension, if it exists.
+            if name != original_name or not config.keep_original_name:
+                names.discard(name)
+                names.add(Path(name).stem)
+        return names
 
 
 @dataclass
@@ -205,9 +258,9 @@ class Registry:
             )
 
         for path in self.config.script_directories:
-            for file in path.iterdir():
-                if file.is_file() and os.access(file, os.X_OK):
-                    functions = self._get_source_functions(file)
+            for subpath in path.iterdir():
+                if subpath.is_file() and os.access(subpath, os.X_OK):
+                    functions = self._get_script_functions(subpath)
                     self.script_functions.update(functions)
 
     def _get_source_functions(self, path: Path) -> dict[str, SourceFunctionRecord]:
@@ -220,62 +273,38 @@ class Registry:
             original_name = match.group("function_name")
             comment = match.group("comment")
 
-            if self.config.underscore_to_dash:
-                name = original_name.replace("_", "-")
-            else:
-                name = original_name
-
-            func_record = SourceFunctionRecord(
-                name=name,
-                original_name=original_name,
-                help=comment,
-                path=path,
-                aliases={name},
+            functions.update(
+                SourceFunctionRecord.build_all(
+                    original_name,
+                    path,
+                    self.config,
+                    comment=comment,
+                )
             )
-            functions[name] = func_record
-            if self.config.keep_original_name:
-                func_record.aliases.add(original_name)
-                functions[original_name] = replace(func_record, name=original_name)
         return functions
 
     def _get_script_functions(self, path: Path) -> dict[str, ScriptFunctionRecord]:
-        original_name = path.stem
-        comment = ""
-        config = self.config
-        cls = ScriptFunctionRecord
-
-        name = (
-            original_name.replace("_", "-")
-            if config.underscore_to_dash
-            else original_name
-        )
-
-        func_record = cls(
-            name=name,
-            original_name=original_name,
-            help=comment,
-            path=path,
-            aliases={name},
-        )
-        functions = {name: func_record}
-
-        if config.keep_original_name:
-            func_record.aliases.add(original_name)
-            functions[original_name] = replace(func_record, name=original_name)
-        return functions
+        return ScriptFunctionRecord.build_all(path.name, path.parent, self.config)
 
     def get(self, name: str) -> AbstractFunctionRecord:
         """Get a function record by name."""
-        for registry in (self.special_functions, self.source_functions):
+        for registry in (
+            self.special_functions,
+            self.source_functions,
+            self.script_functions,
+        ):
             if name in registry:
                 return registry[name]
         raise KeyError(name)
 
-    def iter_source_functions(
+    def iter_user_functions(
         self,
     ) -> Iterator[tuple[Path, list[SourceFunctionRecord]]]:
-        """Iterate over source functions."""
-        records = sorted(self.source_functions.values(), key=lambda r: (r.path, r.name))
+        """Iterate over functions defined by the user."""
+        function_records = itertools.chain(
+            self.source_functions.values(), self.script_functions.values()
+        )
+        records = sorted(function_records, key=lambda r: (r.path, r.name))
         for path, group in itertools.groupby(records, key=lambda r: r.path):
             group_list = list(_generate_unique_records(group))
             if group_list:
@@ -284,11 +313,16 @@ class Registry:
     def iter_all(self):
         """Iterate over all functions."""
         yield from self.source_functions.values()
+        yield from self.script_functions.values()
         yield from self.special_functions.values()
 
     def __contains__(self, name: str) -> bool:
         """Check if the function record is in the registry."""
-        return name in self.source_functions or name in self.special_functions
+        return (
+            name in self.source_functions
+            or name in self.special_functions
+            or name in self.script_functions
+        )
 
 
 def _generate_unique_records(
@@ -379,10 +413,10 @@ def list_(ctx: click.Context):
     config: Config = ctx.obj["config"]
     registry: Registry = ctx.obj["registry"]
 
-    for path, group in registry.iter_source_functions():
+    for path, group in registry.iter_user_functions():
         short_path = _shrink_path(path)
 
-        click.echo(f"File: {short_path}\n")
+        click.echo(f"Path: {short_path}\n")
 
         for record in group:
             help_string = f": {record.help}" if record.help else ""
