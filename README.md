@@ -77,6 +77,10 @@ configuration file can be structured.
     "scripts/test_source1.sh",
     "scripts/test_source2.sh"
   ],
+  ,
+  "script_directories": [
+    "scripts/executable"
+  ],
   "underscore_to_dash": true,
   "keep_original_name": false,
   "function_regexp": "^\\s*(?:function\\s+)?(?P<function_name>\\w+)\\s*(?:\\(\\))?\\s*\\{\\s*(?:#\\s*(?P<comment>.*))?$"
@@ -86,6 +90,8 @@ configuration file can be structured.
 The options are as follows:
 
 - `source_files` is a list of source files to parse.
+- `script_directories` is a list of directories to search for executable
+  scripts.
 - `underscore_to_dash` is a boolean flag to replace underscores with dashes in
   the function names.
 - `keep_original_name` allows to use both the original function name and the
