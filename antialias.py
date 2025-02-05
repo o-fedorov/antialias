@@ -95,6 +95,17 @@ compdef _{wrapper_name}_completion {wrapper_name}
 
 
 @dataclass
+class Override:
+    """Function definition override."""
+
+    help: str = None
+    aliases: set[str] = field(default_factory=set)
+
+    def __post_init__(self):
+        self.aliases = set(self.aliases)
+
+
+@dataclass
 class Config:
     """Configuration for the application."""
 
@@ -106,6 +117,9 @@ class Config:
         r"^\s*(?:function\s+)?(?P<function_name>\w+)\s*(?:\(\))?"
         + r"\s*\{\s*(?:#\s*(?P<comment>.*))?$"
     )
+    overrides: dict[Path | None, dict[str, Override]] = field(
+        default_factory=lambda: {"*": {}}
+    )
 
     @classmethod
     def from_dict(cls, data: dict, *, files_root: Path = Path()) -> "Config":
@@ -113,13 +127,27 @@ class Config:
         data = data.copy()
         source_files = data.pop("source_files", [])
         script_directories = data.pop("script_directories", [])
+        overrides = data.pop("overrides", {})
 
         resolved_source_files = cls._resolve_paths(files_root, source_files)
         resolved_script_directories = cls._resolve_paths(files_root, script_directories)
 
+        initialized_overrides = {}
+        for input_path, overrides_data in overrides.items():
+            if input_path == "*":
+                path = None
+            else:
+                path = cls._resolve_one_path(files_root, input_path)
+
+            initialized_overrides[path] = {
+                name: Override(**override_data)
+                for name, override_data in overrides_data.items()
+            }
+
         return cls(
             source_files=resolved_source_files,
             script_directories=resolved_script_directories,
+            overrides=initialized_overrides,
             **data,
         )
 
@@ -127,12 +155,16 @@ class Config:
     def _resolve_paths(cls, files_root, files):
         resolved_files = []
         for path_str in files:
-            path = Path(path_str).expanduser()
-
-            if not path.is_absolute():
-                path = files_root / path
-            resolved_files.append(path.resolve())
+            path = cls._resolve_one_path(files_root, path_str)
+            resolved_files.append(path)
         return resolved_files
+
+    @classmethod
+    def _resolve_one_path(cls, files_root, path_str):
+        path = Path(path_str).expanduser()
+        if not path.is_absolute():
+            path = files_root / path
+        return path.resolve()
 
 
 @dataclass
@@ -187,7 +219,7 @@ class SourceFunctionRecord(AbstractFunctionRecord):
         comment: str | None = None,
     ) -> dict[str, T]:
         """Build the records according to a config."""
-        names = cls._get_names(original_name, config)
+        names = cls._get_names(original_name, path, config)
 
         functions = {}
         for name in names:
@@ -202,7 +234,7 @@ class SourceFunctionRecord(AbstractFunctionRecord):
         return functions
 
     @classmethod
-    def _get_names(cls, original_name: str, config: Config) -> set[str]:
+    def _get_names(cls, original_name: str, path: Path, config: Config) -> set[str]:
         names = set()
         if config.underscore_to_dash:
             names.add(original_name.replace("_", "-"))
@@ -225,8 +257,8 @@ class ScriptFunctionRecord(SourceFunctionRecord):
         return super().format_command(args, name=name)
 
     @classmethod
-    def _get_names(cls, original_name, config):
-        names = super()._get_names(original_name, config)
+    def _get_names(cls, original_name, path, config):
+        names = super()._get_names(original_name, path, config)
         for name in names.copy():
             # Drop an extension, if it exists.
             if name != original_name or not config.keep_original_name:
