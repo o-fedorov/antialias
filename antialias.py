@@ -108,6 +108,9 @@ class Override:
             self.aliases.add(self.name)
 
 
+_NULL_OVERRIDE = Override()
+
+
 @dataclass
 class Config:
     """Configuration for the application."""
@@ -223,13 +226,14 @@ class SourceFunctionRecord(AbstractFunctionRecord):
     ) -> dict[str, T]:
         """Build the records according to a config."""
         names = cls._get_names(original_name, path, config)
+        overridden_help = cls._get_override(original_name, path, config).help
 
         functions = {}
         for name in names:
             functions[name] = cls(
                 name=name,
                 original_name=original_name,
-                help=comment,
+                help=overridden_help or comment,
                 path=path,
                 aliases=names,
             )
@@ -243,7 +247,7 @@ class SourceFunctionRecord(AbstractFunctionRecord):
         if override is None:
             override = config.overrides.get(None, {}).get(original_name)
 
-        if override is not None:
+        if override is _NULL_OVERRIDE:
             names.update(override.aliases)
         elif config.underscore_to_dash:
             names.add(original_name.replace("_", "-"))
@@ -254,6 +258,13 @@ class SourceFunctionRecord(AbstractFunctionRecord):
             names.add(original_name)
 
         return names
+
+    @classmethod
+    def _get_override(cls, original_name: str, path: Path, config: Config) -> Override:
+        override = config.overrides.get(path, {}).get(original_name)
+        if override is None:
+            override = config.overrides.get(None, {}).get(original_name)
+        return override or _NULL_OVERRIDE
 
 
 @dataclass
@@ -542,7 +553,7 @@ def completion(ctx: click.Context, shell: str | None, name: str):
         )
     elif shell == "zsh":
         subcommands = [
-            f"{r.name}:{r.help or r.original_name}" for r in registry.iter_all()
+            f"{r.name}: {r.help or r.original_name}" for r in registry.iter_all()
         ]
         click.echo(
             ZSH_COMPLETION_TEMPLATE.format(
