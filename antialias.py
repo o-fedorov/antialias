@@ -124,7 +124,7 @@ class Config:
         + r"\s*\{\s*(?:#\s*(?P<comment>.*))?$"
     )
     overrides: dict[Path | None, dict[str, Override]] = field(
-        default_factory=lambda: {"*": {}}
+        default_factory=lambda: {"*": {"functions": {}}}
     )
 
     @classmethod
@@ -145,9 +145,12 @@ class Config:
             else:
                 path = cls._resolve_one_path(files_root, input_path)
 
-            initialized_overrides[path] = {
+            function_overrides = overrides_data.pop("functions", {})
+
+            initialized_overrides[path] = {"functions": {}}
+            initialized_overrides[path]["functions"] = {
                 name: Override(**override_data)
-                for name, override_data in overrides_data.items()
+                for name, override_data in function_overrides.items()
             }
 
         return cls(
@@ -171,6 +174,20 @@ class Config:
         if not path.is_absolute():
             path = files_root / path
         return path.resolve()
+
+    def extract(self, path: list[str]):  # noqa: ANN201
+        """Extract the config using the path.
+
+        Returns:
+            The value at the path, or None if it doesn't exist.
+        """
+        first_key, *path = path
+        data = getattr(self, first_key)
+        for key in path:
+            if key not in data:
+                return None
+            data = data[key]
+        return data
 
 
 @dataclass
@@ -243,11 +260,9 @@ class SourceFunctionRecord(AbstractFunctionRecord):
     @classmethod
     def _get_names(cls, original_name: str, path: Path, config: Config) -> set[str]:
         names = set()
-        override = config.overrides.get(path, {}).get(original_name)
-        if override is None:
-            override = config.overrides.get(None, {}).get(original_name)
+        override = cls._get_override(original_name, path, config)
 
-        if override is _NULL_OVERRIDE:
+        if override is not _NULL_OVERRIDE:
             names.update(override.aliases)
         elif config.underscore_to_dash:
             names.add(original_name.replace("_", "-"))
@@ -261,9 +276,10 @@ class SourceFunctionRecord(AbstractFunctionRecord):
 
     @classmethod
     def _get_override(cls, original_name: str, path: Path, config: Config) -> Override:
-        override = config.overrides.get(path, {}).get(original_name)
+        override = config.extract(["overrides", path, "functions", original_name])
+
         if override is None:
-            override = config.overrides.get(None, {}).get(original_name)
+            override = config.extract(["overrides", None, "functions", original_name])
         return override or _NULL_OVERRIDE
 
 
