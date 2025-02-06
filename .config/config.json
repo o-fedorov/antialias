@@ -9,5 +9,22 @@
   ],
   "underscore_to_dash": true,
   "keep_original_name": false,
-  "function_regexp": "^\\s*(?:function\\s+)?(?P<function_name>\\w+)\\s*(?:\\(\\))?\\s*\\{\\s*(?:#\\s*(?P<comment>.*))?$"
+  "function_regexp": "^\\s*(?:function\\s+)?(?P<function_name>\\w+)\\s*(?:\\(\\))?\\s*\\{\\s*(?:#\\s*(?P<comment>.*))?$",
+  "overrides": {
+    "*": {
+      "f_1": {
+        "help": "This is a help message for f_1",
+        "name": "f1"
+      }
+    },
+    "scripts/executable": {
+      "run_test_script.sh": {
+        "help": "This is a help message for run_test_script.sh",
+        "aliases": [
+          "run-test",
+          "run-test-script"
+        ]
+      }
+    }
+  }
 }
