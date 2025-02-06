@@ -98,11 +98,14 @@ compdef _{wrapper_name}_completion {wrapper_name}
 class Override:
     """Function definition override."""
 
+    name: str = None
     help: str = None
     aliases: set[str] = field(default_factory=set)
 
     def __post_init__(self):
         self.aliases = set(self.aliases)
+        if self.name is not None:
+            self.aliases.add(self.name)
 
 
 @dataclass
@@ -236,7 +239,13 @@ class SourceFunctionRecord(AbstractFunctionRecord):
     @classmethod
     def _get_names(cls, original_name: str, path: Path, config: Config) -> set[str]:
         names = set()
-        if config.underscore_to_dash:
+        override = config.overrides.get(path, {}).get(original_name)
+        if override is None:
+            override = config.overrides.get(None, {}).get(original_name)
+
+        if override is not None:
+            names.update(override.aliases)
+        elif config.underscore_to_dash:
             names.add(original_name.replace("_", "-"))
         else:
             names.add(original_name)
