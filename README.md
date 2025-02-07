@@ -3,40 +3,67 @@ Invoke your bash functions from one place.
 
 ## Quickstart
 
-The simplest way to use antialias is to execute it with `uv run`.
+### Prerequisites
+The simplest way to use antialias is to install it using `uv` or `pipx`.
 
-First, ensure that you have `uv` installed.  Refer to the following
-page to figure out how to install `uv`:
+First ensure that you have `uv` or `pipx` installed.  Refer to the following
+pages to figure out how to install one of these tools:
 
-<https://docs.astral.sh/uv/getting-started/installation/>
+- `uv`: <https://docs.astral.sh/uv/getting-started/installation/>
+- `pipx`: <https://pipx.pypa.io/latest/installation/>
 
-Next, place [./antialias.py](./antialias.py) in your `PATH`
-to ensure that you can execute it from anywhere.
+### Installation
+Use this repository's URL as a source for the installation.
+For `uv` the command will look like this:
 
-Then, add the folowing line to your `~/.bashrc`, `~/.bash_profile`
-or `~/.zshrc`:
+```bash
+uv tool install --from git+https://github.com/o-fedorov/antialias@main antialias
+```
+
+For `pipx` the command will look like this:
+
+```bash
+pipx install git+https://github.com/o-fedorov/antialias@main
+```
+
+If you are contributing to the project, you can install it in the editable
+mode.  For `uv` navigate to the root directory of the repo and run:
+
+```bash
+uv tool install --from file://. antialias --editable
+```
+
+Check that `antialias` is installed by running:
+
+```bash
+antialias --help
+```
+
+### Configuration
+When the tool is installed, add the following lines to your
+`~/.bashrc`, `~/.bash_profile` or `~/.zshrc`:
 
 ```bash
 als() {
-  eval "$(antialias.py eval -- "$@")"
+  eval "$(antialias eval -- "$@")"
 }
 ```
 
-Also, add one of the following lines to
-setup commands completion. For zsh:
+Also, add one of the following lines to setup commands completion.
+For zsh:
 
 ```bash
-eval "$($ANTIALIAS_FILES_ROOT/antialias.py completion --zsh --name als)"
+eval "$(antialias completion --zsh --name als)"
 ```
 
 For bash:
 
 ```bash
-eval "$($ANTIALIAS_FILES_ROOT/antialias.py completion --bash --name als)"
+eval "$(antialias completion --bash --name als)"
 ```
 
-Feel free to replace `als` in the examples above
-with any other name you prefer.
+Feel free to replace `als` in the examples above with
+any other name you prefer.
 
 Restart your shell or run `source ~/.bashrc`, `source ~/.bash_profile`
 or `source ~/.zshrc` to apply the changes.  Now you can generate

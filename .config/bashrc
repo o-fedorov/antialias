@@ -3,7 +3,7 @@ export ANTIALIAS_CONFIG=$ANTIALIAS_FILES_ROOT/.config/config.json
 export SHELL
 
 a() {
-  eval "$($ANTIALIAS_FILES_ROOT/antialias.py eval -- "$@")"
+  eval "$(antialias eval -- "$@")"
 }
 
-eval "$($ANTIALIAS_FILES_ROOT/antialias.py completion --name a)"
+eval "$(antialias completion --name a)"

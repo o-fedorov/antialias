@@ -1,37 +1,8 @@
-#!/usr/bin/env -S uv --quiet run
-"""A tool to invoke sh functions from multiple scripts.
+"""The main entrypoint."""
 
-MIT License
-
-Copyright (c) 2025 Oleksandr Fedorov
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-"""
-
-# /// script
-# requires-python = ">=3.10"
-# dependencies = [
-#   "click~=8.1",
-# ]
-# ///
 import itertools
 import json
+from math import e
 import os
 import re
 import shlex
@@ -409,6 +380,7 @@ def _generate_unique_records(
     "-c",
     "--config",
     default=f"{HOME_DIR}/.antialias.json",
+    envvar="ANTIALIAS_CONFIG",
     type=click.Path(dir_okay=False, path_type=Path, resolve_path=True),
     help="Path to config file",
 )
@@ -416,6 +388,7 @@ def _generate_unique_records(
     "-r",
     "--files-root",
     default=str(CWD),
+    envvar="ANTIALIAS_FILES_ROOT",
     type=click.Path(exists=True, resolve_path=True, path_type=Path),
     help="Root directory for source_files, if a relative paths are used.",
 )
@@ -443,6 +416,7 @@ def eval_(ctx: click.Context, function: str, args: tuple[str]):
     """Generate scripts for the shell to evaluate."""
     config = ctx.obj["config"]
     registry = ctx.obj["registry"]
+    print(ctx.obj["config_path"])
 
     if function not in registry:
         click.echo(f"Error: function {function} not found.", err=True)
