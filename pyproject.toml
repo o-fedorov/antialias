@@ -14,4 +14,4 @@ dev-dependencies = [
 ]
 
 [project.scripts]
-antialias = "antialias:cli"
+antialias = "antialias.__main__:cli"

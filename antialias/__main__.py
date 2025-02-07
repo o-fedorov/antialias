@@ -2,7 +2,6 @@
 
 import itertools
 import json
-from math import e
 import os
 import re
 import shlex
@@ -416,7 +415,6 @@ def eval_(ctx: click.Context, function: str, args: tuple[str]):
     """Generate scripts for the shell to evaluate."""
     config = ctx.obj["config"]
     registry = ctx.obj["registry"]
-    print(ctx.obj["config_path"])
 
     if function not in registry:
         click.echo(f"Error: function {function} not found.", err=True)
