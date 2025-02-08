@@ -130,6 +130,7 @@ The options are as follows:
 Below are the examples of the tool in action.  It has `a` alias, as
 configured in [.config/bashrc](./.config/bashrc).
 
+<!-- testcase -->
 ```bash
 $ a --dump-config
 Config file updated: .config/config.json
@@ -160,3 +161,4 @@ Called f_2 with args: arg1 arg2 --option1
 $ a f-3
 Error: function f-3 not found.
 ```
+<!-- endtestcase -->
