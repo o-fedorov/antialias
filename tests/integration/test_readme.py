@@ -6,7 +6,7 @@ from subprocess import STDOUT, CalledProcessError, check_output
 from tests.integration.fixtures import BASHRC_PATH, DATA_DIR, INTEGRATION_TESTS_DIR
 from tests.integration.parser import get_testcases
 
-REPLACEMENTS = ((r"^/.*/bash\b", "/bin/bash"),)
+REPLACEMENTS = ((r"^/.*/\bbash\b", "bash"),)
 
 
 def pytest_generate_tests(metafunc):
