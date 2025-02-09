@@ -1,0 +1,10 @@
+export ANTIALIAS_FILES_ROOT=$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")/..
+export ANTIALIAS_CONFIG=$ANTIALIAS_FILES_ROOT/config/config.json
+export HOME=$ANTIALIAS_FILES_ROOT
+
+
+als() {
+  eval "$(antialias eval -- "$@")"
+}
+
+eval "$(antialias completion --bash --name als)"

@@ -8,5 +8,5 @@ fmt() {  # format the codebase
 
 fix() {  # format and fix the codebase
   fmt
-  lint --fix
+  lint --fix "$@"
 }

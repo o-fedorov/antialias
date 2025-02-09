@@ -1,6 +1,5 @@
 {
   "source_files": [
-    "scripts/ops.sh",
     "scripts/test_source1.sh",
     "scripts/test_source2.sh"
   ],

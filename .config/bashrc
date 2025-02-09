@@ -1,9 +1,0 @@
-export ANTIALIAS_FILES_ROOT=$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")/..
-export ANTIALIAS_CONFIG=$ANTIALIAS_FILES_ROOT/.config/config.json
-export SHELL
-
-a() {
-  eval "$(antialias eval -- "$@")"
-}
-
-eval "$(antialias completion --name a)"

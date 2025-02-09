@@ -434,9 +434,9 @@ def eval_(ctx: click.Context, function: str, args: tuple[str]):
     (
         {source_commands}
 
-        env > /tmp/antialias/env-before-$PID
+        env | sort > /tmp/antialias/env-before-$PID
         {command}
-        env > /tmp/antialias/env-after-$PID
+        env | sort > /tmp/antialias/env-after-$PID
     )
     new_env=$(comm -13 /tmp/antialias/env-before-$PID /tmp/antialias/env-after-$PID)
 
