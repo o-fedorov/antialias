@@ -10,6 +10,7 @@ TESTCASE_COMMENT = "<!-- testcase -->"
 TESTCASE_END_COMMENT = "<!-- endtestcase -->"
 CODEBLOCK_FENCE = "```"
 SHELL_PROMPT = "$ "
+COMMENTED_SHELL_PROMPT = "# "
 
 
 @dataclass
@@ -34,7 +35,7 @@ def get_testcases():
             collect = False
             continue
 
-        if not collect:
+        if not collect or line.startswith(COMMENTED_SHELL_PROMPT):
             continue
 
         if line.startswith(CODEBLOCK_FENCE):

@@ -1,10 +1,13 @@
 """Integration tests for the README.md file."""
-
+import re
 from subprocess import STDOUT, CalledProcessError, check_output
 
 from tests.integration.fixtures import BASHRC_PATH, DATA_DIR, INTEGRATION_TESTS_DIR
 from tests.integration.parser import get_testcases
 
+REPLACEMENTS = (
+    (r"^/.*/bash\b", "/bin/bash"),
+)
 
 def pytest_generate_tests(metafunc):
     if "doc_testcase" in metafunc.fixturenames:
@@ -38,4 +41,9 @@ def _normalize_output(output: str) -> str:
     data_dir_str = str(DATA_DIR)
     if not data_dir_str.endswith("/"):
         data_dir_str += "/"
-    return output.strip().replace(data_dir_str, "")
+    output = output.strip().replace(data_dir_str, "")
+
+    for pattern, replacement in REPLACEMENTS:
+        output = re.sub(pattern, replacement, output)
+
+    return output

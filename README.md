@@ -152,11 +152,22 @@ Special functions:
   --dump-config: Dump config to a file.
   --list: List all available functions.
 
+# antialias exposes any environment
+# variables set by a command
+$ als f1 arg1; echo F_1_CALLED=$F_1_CALLED
+Hello from f_1 with args: arg1
+F_1_CALLED=1
+
+# it also makes the functions see each other as usual
 $ als f-2 arg1 arg2 --option1
 Hello from f_1 with args: arg1 arg2 --option1
 Called f_2 with args: arg1 arg2 --option1
 
-$ als f-3
-Error: function f-3 not found.
+# but it doesn't expose them to your shell environment
+$ als f_1
+Error: function f_1 not found.
+
+$ f_1
+/bin/bash: line 1: f_1: command not found
 ```
 <!-- endtestcase -->
