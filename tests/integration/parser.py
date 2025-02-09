@@ -1,10 +1,10 @@
 """Parsing the README.md file to get the test cases."""
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from pprint import pprint
 
-ROOT = Path(__file__).parent.parent.parent
+from tests.integration.fixtures import ROOT
+
 README = ROOT / "README.md"
 TESTCASE_COMMENT = "<!-- testcase -->"
 TESTCASE_END_COMMENT = "<!-- endtestcase -->"

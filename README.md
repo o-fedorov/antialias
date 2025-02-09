@@ -132,33 +132,31 @@ configured in [.config/bashrc](./.config/bashrc).
 
 <!-- testcase -->
 ```bash
-$ a --dump-config
-Config file updated: .config/config.json
+$ als --dump-config
+Config file updated: config/config.json
 
-$ a --list
-Special Functions:
-  --dump-config: Dump config to a file.
-  --list: List all available functions.
+$ als --list
+Path: scripts/executable
 
-File: scripts/test_source1.sh
+  run-test (original: run_test_script.sh, alias: run-test-script): This is a help message for run_test_script.sh
 
-  f-1 (original: f_1)
+Path: scripts/test_source1.sh
 
-File: scripts/test_source2.sh
+  f1 (original: f_1): This is a help message for f_1
+
+Path: scripts/test_source2.sh
 
   f-2 (original: f_2)
 
-File: scripts/ops.sh
+Special functions:
+  --dump-config: Dump config to a file.
+  --list: List all available functions.
 
-  fix: format and fix the codebase
-  fmt: format the codebase
-  lint: lint the codebase
-
-$ a f-2 arg1 arg2 --option1
+$ als f-2 arg1 arg2 --option1
 Hello from f_1 with args: arg1 arg2 --option1
 Called f_2 with args: arg1 arg2 --option1
 
-$ a f-3
+$ als f-3
 Error: function f-3 not found.
 ```
 <!-- endtestcase -->
