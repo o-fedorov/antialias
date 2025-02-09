@@ -6,7 +6,10 @@ from subprocess import STDOUT, CalledProcessError, check_output
 from tests.integration.fixtures import BASHRC_PATH, DATA_DIR, INTEGRATION_TESTS_DIR
 from tests.integration.parser import get_testcases
 
-REPLACEMENTS = ((r"^/.*/\bbash\b", "bash"),)
+REPLACEMENTS = (
+    (r"^/.*/\bbash\b", "bash"),
+    (re.escape(f"{DATA_DIR}/"), ""),
+)
 
 
 def pytest_generate_tests(metafunc):
@@ -38,11 +41,6 @@ def _run(cmd: str) -> str:
 
 def _normalize_output(output: str) -> str:
     """Normalize the output."""
-    data_dir_str = str(DATA_DIR)
-    if not data_dir_str.endswith("/"):
-        data_dir_str += "/"
-    output = output.strip().replace(data_dir_str, "")
-
     for pattern, replacement in REPLACEMENTS:
         output = re.sub(pattern, replacement, output)
 
