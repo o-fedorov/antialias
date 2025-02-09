@@ -80,22 +80,25 @@ Finally, run `als --list` to see the list of the available functions.
 
 ## Usage
 
-Refer to [.config/](./.config) for the advanced example of the
+Refer to [tests/integration/data/config](./tests/integration/data/config)
+for the advanced example of the
 configuration.  This is how the tool itself is tested, and how the
-functions in [scripts/](./scripts) are invoked.
+functions in [tests/integration/data/scripts/](./tests/integration/data/scripts)
+are invoked.
 
-The file [.config/bashrc](./.config/bashrc) shows how the tool can be
-configured in a portable way.  You probably do not need it, but it is
-useful to know that you can use environment variables to override the
+The file [config/bashrc](./tests/integration/data/config/bashrc)
+shows how the tool can be configured in a portable way.
+You probably do not need it, but it is useful to know that
+you can use environment variables to override the
 config path.  You can also do `antialias.py --config .config/...` to
-override the config path.
+for the same purposes.
 
 Also, while you can use relative source file paths, and define the root
 with `ANTIALIAS_FILES_ROOT` environment variable or `--files-root` option,
 it is recommended to use absolute paths in your config.
 
-The file [.config/config.json](./.config/config.json) shows how the
-configuration file can be structured.
+The file [config/config.json](./tests/integration/data/config/config.json)
+shows how the ls -laconfiguration file can be structured.
 
 ```json
 {
