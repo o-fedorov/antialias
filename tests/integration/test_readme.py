@@ -44,4 +44,4 @@ def _normalize_output(output: str) -> str:
     for pattern, replacement in REPLACEMENTS:
         output = re.sub(pattern, replacement, output)
 
-    return output
+    return output.strip()
