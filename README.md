@@ -86,11 +86,11 @@ configuration.  This is how the tool itself is tested, and how the
 functions in [tests/integration/data/scripts/](./tests/integration/data/scripts)
 are invoked.
 
-The file [config/bashrc](./tests/integration/data/config/bashrc)
+The file [tests/integration/data/config/bashrc](./tests/integration/data/config/bashrc)
 shows how the tool can be configured in a portable way.
 You probably do not need it, but it is useful to know that
 you can use environment variables to override the
-config path.  You can also do `antialias.py --config .config/...` to
+config path.  You can also do `antialias.py --config .config/...`
 for the same purposes.
 
 Also, while you can use relative source file paths, and define the root
@@ -98,7 +98,7 @@ with `ANTIALIAS_FILES_ROOT` environment variable or `--files-root` option,
 it is recommended to use absolute paths in your config.
 
 The file [config/config.json](./tests/integration/data/config/config.json)
-shows how the ls -laconfiguration file can be structured.
+shows how the configuration file can be structured.
 
 ```json
 {
@@ -107,7 +107,6 @@ shows how the ls -laconfiguration file can be structured.
     "scripts/test_source1.sh",
     "scripts/test_source2.sh"
   ],
-  ,
   "script_directories": [
     "scripts/executable"
   ],
@@ -130,8 +129,8 @@ The options are as follows:
   It should have two named groups: `function_name` and `comment`.
 
 ## Example
-Below are the examples of the tool in action.  It has `a` alias, as
-configured in [.config/bashrc](./.config/bashrc).
+Below are the examples of the tool in action.  It has `als` alias, as
+configured in [tests/integration/data/config/bashrc](./tests/integration/data/config/bashrc).
 
 <!-- testcase -->
 ```bash
