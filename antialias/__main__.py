@@ -10,11 +10,18 @@ from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import Self, TypeVar
+from typing import Literal, Self, TypeVar
 
 import click
 
-T = TypeVar("T")
+T = TypeVar(
+    "T",
+    "AbstractFunctionRecord",
+    "SourceFunctionRecord",
+    "ScriptFunctionRecord",
+    "SpecialFunctionRecord",
+)
+Asterisk = Literal["*"]
 
 SPECIAL_FUNCTIONS = MappingProxyType(
     {
@@ -68,8 +75,8 @@ compdef _{wrapper_name}_completion {wrapper_name}
 class Override:
     """Function definition override."""
 
-    name: str = None
-    help: str = None
+    name: str | None = None
+    help: str | None = None
     aliases: set[str] = field(default_factory=set)
 
     def __post_init__(self):
@@ -79,6 +86,7 @@ class Override:
 
 
 _NULL_OVERRIDE = Override()
+OverrideSections = dict[str, dict[str, Override]]
 
 
 @dataclass
@@ -93,7 +101,7 @@ class Config:
         r"^\s*(?:function\s+)?(?P<function_name>\w+)\s*(?:\(\))?"
         + r"\s*\{\s*(?:#\s*(?P<comment>.*))?$"
     )
-    overrides: dict[Path | None, dict[str, Override]] = field(
+    overrides: dict[Path | Asterisk | None, OverrideSections] = field(
         default_factory=lambda: {"*": {"functions": {}}}
     )
 
@@ -110,7 +118,7 @@ class Config:
 
         initialized_overrides = {}
         for input_path, overrides_data in overrides.items():
-            if input_path == "*":
+            if input_path in {Asterisk, None}:
                 path = None
             else:
                 path = cls._resolve_one_path(files_root, input_path)
@@ -145,14 +153,13 @@ class Config:
             path = files_root / path
         return path.resolve()
 
-    def extract(self, path: list[str]):  # noqa: ANN201
+    def extract(self, first_key: str | Path, path: list[str | Path | None]):  # noqa: ANN201
         """Extract the config using the path.
 
         Returns:
             The value at the path, or None if it doesn't exist.
         """
-        first_key, *path = path
-        data = getattr(self, first_key)
+        data = getattr(self, str(first_key))
         for key in path:
             if key not in data:
                 return None
@@ -166,14 +173,14 @@ class AbstractFunctionRecord:
 
     name: str
     original_name: str
-    help: str = None
+    help: str | None = None
     aliases: set[str] = field(default_factory=set)
 
     def __post_init__(self):
         if self.help is None:
             self.help = ""
 
-    def format_command(self, args: tuple[str], *, name: str | None = None) -> str:
+    def format_command(self, args: tuple[str, ...], *, name: str | None = None) -> str:
         """Format the command to be executed."""
         if name is None:
             name = self.original_name
@@ -185,15 +192,15 @@ class AbstractFunctionRecord:
 class SpecialFunctionRecord(AbstractFunctionRecord):
     """Metadata for a special function."""
 
-    def format_command(self, args: tuple[str], **_) -> str:
+    def format_command(self, args: tuple[str, ...], **_) -> str:
         """Format the command to execute the actual subcommand."""
         func_name = self.original_name
-        original_args = tuple(
+        original_args: tuple[str, ...] = tuple(
             itertools.takewhile(lambda a: a != EVAL_COMMAND, sys.argv)
         )
         actual_name, *actual_args = (*original_args, func_name, *args)
 
-        return super().format_command(actual_args, name=actual_name)
+        return super().format_command(tuple(actual_args), name=actual_name)
 
 
 @dataclass
@@ -246,10 +253,10 @@ class SourceFunctionRecord(AbstractFunctionRecord):
 
     @classmethod
     def _get_override(cls, original_name: str, path: Path, config: Config) -> Override:
-        override = config.extract(["overrides", path, "functions", original_name])
+        override = config.extract("overrides", [path, "functions", original_name])
 
         if override is None:
-            override = config.extract(["overrides", None, "functions", original_name])
+            override = config.extract("overrides", [None, "functions", original_name])
         return override or _NULL_OVERRIDE
 
 
@@ -257,10 +264,10 @@ class SourceFunctionRecord(AbstractFunctionRecord):
 class ScriptFunctionRecord(SourceFunctionRecord):
     """Metadata for a function defined in a source file."""
 
-    def format_command(self, args: tuple[str], **_) -> str:
+    def format_command(self, args: tuple[str, ...], **_) -> str:
         """Format the command for an executable file in a directory."""
         name = self.path / self.original_name
-        return super().format_command(args, name=name)
+        return super().format_command(args, name=str(name))
 
     @classmethod
     def _get_names(cls, original_name, path, config):
@@ -304,7 +311,7 @@ class Registry:
     def _get_source_functions(self, path: Path) -> dict[str, SourceFunctionRecord]:
         functions = {}
 
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         for match in re.finditer(
             self.config.function_regexp, text, flags=re.MULTILINE | re.IGNORECASE
         ):
@@ -325,7 +332,11 @@ class Registry:
         return ScriptFunctionRecord.build_all(path.name, path.parent, self.config)
 
     def get(self, name: str) -> AbstractFunctionRecord:
-        """Get a function record by name."""
+        """Get a function record by name.
+
+        Raises:
+            KeyError: If the function record is not found.
+        """
         for registry in (
             self.special_functions,
             self.source_functions,
@@ -339,12 +350,19 @@ class Registry:
         self,
     ) -> Iterator[tuple[Path, list[SourceFunctionRecord]]]:
         """Iterate over functions defined by the user."""
-        function_records = itertools.chain(
+        function_records: Iterable[SourceFunctionRecord] = itertools.chain(
             self.source_functions.values(), self.script_functions.values()
         )
-        records = sorted(function_records, key=lambda r: (r.path, r.name))
+        records: list[SourceFunctionRecord] = sorted(
+            function_records, key=lambda r: (r.path, r.name)
+        )
+
+        path: Path
+        group: Iterable[SourceFunctionRecord]
         for path, group in itertools.groupby(records, key=lambda r: r.path):
-            group_list = list(_generate_unique_records(group))
+            group_list: list[SourceFunctionRecord] = list(
+                _generate_unique_records(group)
+            )
             if group_list:
                 yield path, group_list
 
@@ -364,8 +382,8 @@ class Registry:
 
 
 def _generate_unique_records(
-    records: Iterable[AbstractFunctionRecord],
-) -> Iterator[AbstractFunctionRecord]:
+    records: Iterable[T],
+) -> Iterator[T]:
     """Get unique function records."""
     seen = set()
     for record in records:
@@ -392,12 +410,12 @@ def _generate_unique_records(
     help="Root directory for source_files, if a relative paths are used.",
 )
 @click.pass_context
-def cli(ctx: click.Context, config: str, files_root: Path):
+def cli(ctx: click.Context, config: Path, files_root: Path):
     """The main entrypoint for the command."""
     ctx.ensure_object(dict)
 
     if config.exists():
-        config_dict = json.loads(config.read_text())
+        config_dict = json.loads(config.read_text(encoding="utf-8"))
         config_obj = Config.from_dict(config_dict, files_root=files_root)
     else:
         config_obj = Config()

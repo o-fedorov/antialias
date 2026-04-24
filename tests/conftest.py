@@ -32,8 +32,8 @@ def config_path(config, tmpdir):
 def run_cli(config_path):
     runner = CliRunner()
 
-    def run(*args: tuple, **kwargs: dict) -> Result:
-        return runner.invoke(cli, ["--config", config_path, *args], **kwargs)
+    def run(*args: str) -> Result:
+        return runner.invoke(cli, ["--config", str(config_path), *args])
 
     return run
 
