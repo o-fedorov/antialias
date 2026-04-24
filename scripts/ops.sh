@@ -10,10 +10,11 @@ fmt() {  # format the codebase
   uvx ruff format "$@"
 }
 
-fix() {  # format and fix the codebase
+fix() {  # format the codebase and fix fixable issues
   fmt
   lint --fix --exit-zero
   typing --fix --exit-zero
+  fmt
 }
 
 check-all() {  # fix and check the codebase
