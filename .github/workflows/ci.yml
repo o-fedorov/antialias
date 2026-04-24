@@ -16,6 +16,7 @@ jobs:
         check:
           - ruff check
           - ruff format --check
+          - ty check
           - pytest -v
 
     runs-on: ubuntu-latest
