@@ -8,6 +8,7 @@ from tests.integration.parser import get_testcases
 
 REPLACEMENTS = (
     (r"^/.*/\bbash\b", "bash"),
+    (r"^bash: line 1:", "bash:"),
     (re.escape(f"{DATA_DIR}/"), ""),
 )
 

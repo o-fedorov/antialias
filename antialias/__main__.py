@@ -10,7 +10,7 @@ from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import TypeVar
+from typing import Self, TypeVar
 
 import click
 
@@ -204,13 +204,13 @@ class SourceFunctionRecord(AbstractFunctionRecord):
 
     @classmethod
     def build_all(
-        cls: type[T],
+        cls,
         original_name: str,
         path: Path,
         config: Config,
         *,
         comment: str | None = None,
-    ) -> dict[str, T]:
+    ) -> dict[str, Self]:
         """Build the records according to a config."""
         names = cls._get_names(original_name, path, config)
         overridden_help = cls._get_override(original_name, path, config).help

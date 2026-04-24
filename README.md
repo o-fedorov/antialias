@@ -144,11 +144,12 @@ Path: scripts/executable
 
 Path: scripts/test_source1.sh
 
-  f1 (original: f_1): This is a help message for f_1
+  f1 (original: f_1): Help message is extracted from comment.
 
 Path: scripts/test_source2.sh
 
   f-2 (original: f_2)
+  f_3: This is a help message for f_3
 
 Special functions:
   --dump-config: Dump config to a file.

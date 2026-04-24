@@ -1,3 +1,7 @@
 f_2() {
    f_1 "$@" && echo "Called f_2 with args: $@"
 }
+
+f_3() {
+   echo "Called f_3"
+}

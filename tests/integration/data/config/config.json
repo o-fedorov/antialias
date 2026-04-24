@@ -13,8 +13,11 @@
     "*": {
       "functions": {
         "f_1": {
-          "help": "This is a help message for f_1",
           "name": "f1"
+        },
+        "f_3": {
+          "name": "f_3",
+          "help": "This is a help message for f_3"
         }
       }
     },
