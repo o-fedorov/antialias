@@ -80,13 +80,13 @@ Finally, run `als --list` to see the list of the available functions.
 
 ## Usage
 
-Refer to [tests/integration/data/config](./tests/integration/data/config)
+Refer to [tests/data/config](./tests/data/config)
 for the advanced example of the
 configuration.  This is how the tool itself is tested, and how the
-functions in [tests/integration/data/scripts/](./tests/integration/data/scripts)
+functions in [tests/data/scripts/](./tests/data/scripts)
 are invoked.
 
-The file [tests/integration/data/config/bashrc](./tests/integration/data/config/bashrc)
+The file [tests/data/config/bashrc](./tests/data/config/bashrc)
 shows how the tool can be configured in a portable way.
 You probably do not need it, but it is useful to know that
 you can use environment variables to override the
@@ -97,7 +97,7 @@ Also, while you can use relative source file paths, and define the root
 with `ANTIALIAS_FILES_ROOT` environment variable or `--files-root` option,
 it is recommended to use absolute paths in your config.
 
-The file [config/config.json](./tests/integration/data/config/config.json)
+The file [config/config.json](./tests/data/config/config.json)
 shows how the configuration file can be structured.
 
 ```json
@@ -130,7 +130,7 @@ The options are as follows:
 
 ## Example
 Below are the examples of the tool in action.  It has `als` alias, as
-configured in [tests/integration/data/config/bashrc](./tests/integration/data/config/bashrc).
+configured in [tests/data/config/bashrc](./tests/data/config/bashrc).
 
 <!-- testcase -->
 ```bash

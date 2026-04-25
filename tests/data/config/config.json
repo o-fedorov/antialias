@@ -1,10 +1,10 @@
 {
   "source_files": [
-    "scripts/test_source1.sh",
-    "scripts/test_source2.sh"
+    "/Users/oleksandr/code/antialias/tests/data/scripts/test_source1.sh",
+    "/Users/oleksandr/code/antialias/tests/data/scripts/test_source2.sh"
   ],
   "script_directories": [
-    "scripts/executable"
+    "/Users/oleksandr/code/antialias/tests/data/scripts/executable"
   ],
   "underscore_to_dash": true,
   "keep_original_name": false,
@@ -13,17 +13,25 @@
     "*": {
       "functions": {
         "f_1": {
-          "name": "f1"
+          "name": "f1",
+          "help": null,
+          "aliases": [
+            "f1"
+          ]
         },
         "f_3": {
           "name": "f_3",
-          "help": "This is a help message for f_3"
+          "help": "This is a help message for f_3",
+          "aliases": [
+            "f_3"
+          ]
         }
       }
     },
-    "scripts/executable": {
+    "/Users/oleksandr/code/antialias/tests/data/scripts/executable": {
       "functions": {
         "run_test_script.sh": {
+          "name": null,
           "help": "This is a help message for run_test_script.sh",
           "aliases": [
             "run-test",

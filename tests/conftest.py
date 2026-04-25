@@ -1,13 +1,23 @@
 """Pytest configuration for the antialias package."""
 
 import json
-from dataclasses import asdict
+from pathlib import Path
 from textwrap import dedent
 
 import pytest
 from click.testing import CliRunner, Result
 
-from antialias.__main__ import Config, cli
+from antialias.__main__ import cli
+from antialias._core import Config
+
+ROOT = Path(__file__).parent.parent
+DATA_DIR = ROOT / "tests" / "data"
+CONFIG_PATH = DATA_DIR / "config" / "config.json"
+
+
+@pytest.fixture
+def use_default_config():
+    return True
 
 
 @pytest.fixture
@@ -16,15 +26,17 @@ def config_overrides():
 
 
 @pytest.fixture
-def config(config_overrides):
-    return Config.from_dict(config_overrides)
+def config(config_overrides, use_default_config):
+    if use_default_config:
+        config_data = json.loads(CONFIG_PATH.read_text())
+        config_overrides = config_data | config_overrides
+    return Config.from_dict(config_overrides, files_root=DATA_DIR)
 
 
 @pytest.fixture
 def config_path(config, tmpdir):
     path = tmpdir / "config.json"
-    config_dict = asdict(config)
-    path.write_text(json.dumps(config_dict, indent=4), "utf-8")
+    path.write_text(config.to_json(), "utf-8")
     return path
 
 
